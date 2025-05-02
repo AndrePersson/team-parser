@@ -23,21 +23,26 @@ function App() {
   ];
 
   useEffect(() => {
-    const fetchTeams = async () => {
-      setLoading(true);
-      try {
-        const querySnapshot = await getDocs(collection(db, "teams"));
-        const firestoreTeams = querySnapshot.docs.map((doc) => doc.data());
-        setTeams(firestoreTeams);
-        setIsParsed(true);
-      } catch (error) {
-        console.error("Error fetching teams: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Fejkladdning på 2 sekunder innan vi hämtar data
+    const fakeLoading = setTimeout(() => {
+      setLoading(true); // Startar med "laddning"
 
-    fetchTeams();
+      // Simulerad fördröjning innan vi hämtar den faktiska datan
+      setTimeout(async () => {
+        try {
+          const querySnapshot = await getDocs(collection(db, "teams"));
+          const firestoreTeams = querySnapshot.docs.map((doc) => doc.data());
+          setTeams(firestoreTeams);
+          setIsParsed(true);
+        } catch (error) {
+          console.error("Error fetching teams: ", error);
+        } finally {
+          setLoading(false); // Stänger av laddning
+        }
+      }, 2000); // Fejkladdning i 2 sekunder
+    }, 1000); // Fördröjer innan vi börjar fejkladdning
+
+    return () => clearTimeout(fakeLoading); // Städar upp timeouten om komponenten tas bort
   }, []);
 
   const handleSave = async () => {
@@ -135,10 +140,9 @@ function App() {
 
   return (
     <>
-      {loading && <div class="loader"></div>}
+      {loading && <div className="loader"></div>}
       {!loading && (
-        <div className={`container py-4`}>
-          <h1 className="mb-4 text-primary">MCC Team Parser</h1>
+        <>
           {!isParsed && (
             <>
               <p className="mb-2">Paste HTML below:</p>
@@ -239,7 +243,7 @@ function App() {
               </button>
             )}
           </footer>
-        </div>
+        </>
       )}
     </>
   );
