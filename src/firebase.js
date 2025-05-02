@@ -1,4 +1,3 @@
-// firebase.js
 import { initializeApp } from "firebase/app";
 import {
   getFirestore,
@@ -19,11 +18,33 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
+// Log the Firebase config for debugging purposes
+console.log("Firebase Configuration:", firebaseConfig);
+
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log("Firebase App Initialized:", app);
+} catch (error) {
+  console.error("Error initializing Firebase:", error);
+}
 
 // Initialize Firestore
-const db = getFirestore(app);
+let db;
+try {
+  db = getFirestore(app);
+  console.log("Firestore Initialized:", db);
+} catch (error) {
+  console.error("Error initializing Firestore:", error);
+}
+
+// Check if db is initialized correctly
+if (!db) {
+  console.error("Firestore is not initialized properly.");
+} else {
+  console.log("Firestore instance is ready to use.");
+}
 
 // Export functions for use in your app
 export { db, collection, addDoc, getDocs, deleteDoc, doc };
