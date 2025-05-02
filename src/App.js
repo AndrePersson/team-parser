@@ -11,6 +11,7 @@ function App() {
   });
   const [parseError, setParseError] = useState("");
   const [isParsed, setIsParsed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const hermitcraftList = [
     "GoodTimeWithScar",
@@ -21,27 +22,26 @@ function App() {
     "cubfan135",
   ];
 
-  // Fetch teams from Firestore on component mount
   useEffect(() => {
     const fetchTeams = async () => {
+      setLoading(true);
       try {
-        // Fetch data from the "teams" collection
         const querySnapshot = await getDocs(collection(db, "teams"));
         const firestoreTeams = querySnapshot.docs.map((doc) => doc.data());
         setTeams(firestoreTeams);
-        setIsParsed(true); // Assuming you want to mark it as parsed when the data is fetched
+        setIsParsed(true);
       } catch (error) {
         console.error("Error fetching teams: ", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchTeams();
   }, []);
 
-  // Handle Save - Parse HTML and store in Firestore and Local Storage
   const handleSave = async () => {
     try {
-      // Step 1: Parse the raw HTML
       const parsedTeams = [];
       const parser = new DOMParser();
       const doc = parser.parseFromString(rawHtml, "text/html");
@@ -62,23 +62,45 @@ function App() {
         const logoElement = li.querySelector("button.teamIconContainer img");
         const logoSrc = logoElement ? logoElement.getAttribute("src") : "";
         const logos = Array.from(li.querySelectorAll(".teamLogo"));
-        const members = logos.map((img) =>
-          img.alt.replace(/'s logo'?$/, "").trim()
-        );
 
-        parsedTeams.push({ name: teamName, members, logo: logoSrc });
+        const members = logos.map((img) => {
+          const name = img.alt.replace(/'s logo'?$/, "").trim();
+          const anchor = img.closest("a");
+          let stream = null;
+          let avatar = img.src;
+
+          if (anchor) {
+            const streamUrl = anchor.href;
+            let type = "other";
+            if (
+              streamUrl.includes("youtube.com") ||
+              streamUrl.includes("youtu.be")
+            ) {
+              type = "youtube";
+            } else if (streamUrl.includes("twitch.tv")) {
+              type = "twitch";
+            }
+
+            stream = { url: streamUrl, type };
+          }
+
+          return { name, stream, avatar };
+        });
+
+        parsedTeams.push({
+          name: teamName,
+          members,
+          logo: logoSrc,
+        });
       });
 
-      // Step 2: Save the parsed teams to Firestore
       const teamsCollectionRef = collection(db, "teams");
 
-      // Optional: Clear previous data in Firestore
       const querySnapshot = await getDocs(teamsCollectionRef);
       querySnapshot.forEach((doc) => {
-        deleteDoc(doc.ref); // Delete old documents if needed
+        deleteDoc(doc.ref);
       });
 
-      // Add parsed teams to Firestore
       parsedTeams.forEach(async (team) => {
         await addDoc(teamsCollectionRef, {
           teamName: team.name,
@@ -87,18 +109,16 @@ function App() {
         });
       });
 
-      // Step 3: Update Local Storage and Component State
       localStorage.setItem("teamHtml", rawHtml);
       localStorage.setItem("parsedTeams", JSON.stringify(parsedTeams));
       setTeams(parsedTeams);
       setParseError("");
-      setIsParsed(true); // Mark as successfully parsed
+      setIsParsed(true);
     } catch (error) {
       console.error("Error adding document: ", error);
     }
   };
 
-  // Handle Clear - Reset everything
   const handleClear = () => {
     const confirmClear = window.confirm(
       "Are you sure you want to clear the parsed teams and HTML?"
@@ -114,95 +134,114 @@ function App() {
   };
 
   return (
-    <div className="container py-4">
-      <h1 className="mb-4 text-primary">MCC Team Parser</h1>
-      {!isParsed && (
-        <>
-          <p className="mb-2">Paste HTML below:</p>
-          <div className="mb-3">
-            <textarea
-              className="form-control"
-              value={rawHtml}
-              onChange={(e) => setRawHtml(e.target.value)}
-              rows={10}
-            />
-          </div>
-          <button className="btn btn-success me-2" onClick={handleSave}>
-            Save & Parse
-          </button>
-        </>
-      )}
+    <>
+      {loading && <div class="loader"></div>}
+      {!loading && (
+        <div className={`container py-4`}>
+          <h1 className="mb-4 text-primary">MCC Team Parser</h1>
+          {!isParsed && (
+            <>
+              <p className="mb-2">Paste HTML below:</p>
+              <div className="mb-3">
+                <textarea
+                  className="form-control"
+                  value={rawHtml}
+                  onChange={(e) => setRawHtml(e.target.value)}
+                  rows={10}
+                />
+              </div>
+              <button className="btn btn-success me-2" onClick={handleSave}>
+                Save & Parse
+              </button>
+            </>
+          )}
+          {parseError && (
+            <div className="alert alert-danger mt-4" role="alert">
+              {parseError}
+            </div>
+          )}
 
-      {parseError && (
-        <div className="alert alert-danger mt-4" role="alert">
-          {parseError}
+          {teams.length > 0 && isParsed && (
+            <>
+              <div className="accordion" id="teamsAccordion">
+                {teams.map((team, i) => (
+                  <div className="accordion-item" key={i}>
+                    <h2 className="accordion-header" id={`heading-${i}`}>
+                      <button
+                        className="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target={`#collapse-${i}`}
+                        aria-expanded="false"
+                        aria-controls={`collapse-${i}`}
+                      >
+                        {team.logo && (
+                          <img
+                            src={team.logo}
+                            alt={`${team.teamName} logo`}
+                            className="me-2"
+                            style={{ height: "30px" }}
+                          />
+                        )}
+                        {team.teamName}
+                        {team.members.some((m) =>
+                          hermitcraftList.includes(m.name)
+                        ) && <span className="text-warning ms-1">*</span>}
+                      </button>
+                    </h2>
+                    <div
+                      id={`collapse-${i}`}
+                      className="accordion-collapse collapse bg-dark"
+                      aria-labelledby={`heading-${i}`}
+                    >
+                      <div className="accordion-body">
+                        <ul className="list-group">
+                          {team.members.map((member, j) => {
+                            const isHermit = hermitcraftList.includes(
+                              member.name
+                            );
+                            return (
+                              <li
+                                className={`list-group-item list-group-item-dark ${
+                                  isHermit ? "hermit-member" : ""
+                                }`}
+                                key={j}
+                              >
+                                {member.name}
+                                {member.stream && (
+                                  <span className="ms-2 small text-info">
+                                    [
+                                    <a
+                                      href={member.stream.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      {member.stream.type}
+                                    </a>
+                                    ]
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          <footer className="text-center mt-3">
+            {isParsed && (
+              <button className="btn btn-sm btn-dark" onClick={handleClear}>
+                Clear
+              </button>
+            )}
+          </footer>
         </div>
       )}
-
-      {teams.length > 0 && isParsed && (
-        <>
-          <div className="accordion" id="teamsAccordion">
-            {teams.map((team, i) => (
-              <div className="accordion-item" key={i}>
-                <h2 className="accordion-header" id={`heading-${i}`}>
-                  <button
-                    className="accordion-button collapsed"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target={`#collapse-${i}`}
-                    aria-expanded="false"
-                    aria-controls={`collapse-${i}`}
-                  >
-                    {team.logo && (
-                      <img
-                        src={team.logo}
-                        alt={`${team.teamName} logo`}
-                        className="me-2"
-                        style={{ height: "30px" }}
-                      />
-                    )}
-                    {team.teamName}
-                    {team.members.some((m) => hermitcraftList.includes(m)) && (
-                      <span class="text-warning ms-1">*</span>
-                    )}
-                  </button>
-                </h2>
-                <div
-                  id={`collapse-${i}`}
-                  className="accordion-collapse collapse bg-dark"
-                  aria-labelledby={`heading-${i}`}
-                >
-                  <div className="accordion-body">
-                    <ul className="list-group">
-                      {team.members.map((m, j) => {
-                        const isHermit = hermitcraftList.includes(m);
-                        return (
-                          <li
-                            className={`list-group-item list-group-item-dark ${
-                              isHermit ? "hermit-member" : ""
-                            }`}
-                            key={j}
-                          >
-                            {m}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      <footer className="text-center mt-3">
-        {isParsed && (
-          <button className="btn btn-sm btn-dark" onClick={handleClear}>
-            Clear
-          </button>
-        )}
-      </footer>
-    </div>
+    </>
   );
 }
 

@@ -1,5 +1,10 @@
 @import "bootstrap/dist/css/bootstrap.min.css";
 
+.loading {
+  -webkit-filter: blur(20px);
+  filter: blur(20px);
+}
+
 button:focus {
   outline: none !important;
   box-shadow: none !important;
@@ -70,6 +75,19 @@ button.btn {
   color: #f9c74f;
 }
 
+.accordion-collapse,
+.list-group,
+.accordion-item {
+  background-color: black !important;
+  border: unset !important;
+}
+
+.list-group-item-dark {
+  background-color: #1a1a1a !important;
+  color: white !important;
+  border-color: rgb(49, 49, 49) !important;
+}
+
 .card-body .list-group-item {
   background-color: #444;
   border: none;
@@ -92,8 +110,7 @@ button.btn {
 }
 
 .accordion-item {
-  border-color: rgb(43, 43, 43) !important;
-  border: unset !important;
+  border-bottom: 1px solid rgb(53, 53, 53) !important;
 }
 
 .accordion-button:focus {
@@ -103,6 +120,7 @@ button.btn {
 button.accordion-button {
   background-color: #1f1f1f;
   color: rgb(194, 194, 194);
+  border: unset !important;
 }
 
 .accordion-body {
@@ -117,4 +135,36 @@ button.accordion-button {
 .accordion-button:not(.collapsed) {
   background-color: rgb(24, 24, 24) !important;
   color: white !important;
+}
+
+.loader {
+  width: 50%;
+  max-width: 200px;
+  aspect-ratio: 1;
+  background: linear-gradient(45deg, #60b99a 50%, #0000 0),
+    linear-gradient(45deg, #0000 50%, #60b99a 0),
+    linear-gradient(-45deg, #f77825 50%, #0000 0),
+    linear-gradient(-45deg, #0000 50%, #f77825 0), linear-gradient(#554236 0 0);
+  background-size: 50% 50%;
+  background-repeat: no-repeat;
+  animation: l18 1.5s infinite;
+  margin: 0 auto;
+  margin-top: 5rem;
+}
+@keyframes l18 {
+  0% {
+    background-position: 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%;
+  }
+  25% {
+    background-position: 0 100%, 100% 0, 50% 50%, 50% 50%, 50% 50%;
+  }
+  50% {
+    background-position: 0 100%, 100% 0, 100% 100%, 0 0, 50% 50%;
+  }
+  75% {
+    background-position: 50% 50%, 50% 50%, 100% 100%, 0 0, 50% 50%;
+  }
+  100% {
+    background-position: 50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%;
+  }
 }
