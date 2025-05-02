@@ -12,6 +12,15 @@ function App() {
   const [parseError, setParseError] = useState("");
   const [isParsed, setIsParsed] = useState(false);
 
+  const hermitcraftList = [
+    "GoodTimeWithScar",
+    "Smallishbeans",
+    "falsesymmetry",
+    "Skizzleman",
+    "Xisuma",
+    "cubfan135",
+  ];
+
   // Fetch teams from Firestore on component mount
   useEffect(() => {
     const fetchTeams = async () => {
@@ -91,6 +100,11 @@ function App() {
 
   // Handle Clear - Reset everything
   const handleClear = () => {
+    const confirmClear = window.confirm(
+      "Are you sure you want to clear the parsed teams and HTML?"
+    );
+    if (!confirmClear) return;
+
     localStorage.removeItem("teamHtml");
     localStorage.removeItem("parsedTeams");
     setRawHtml("");
@@ -102,8 +116,6 @@ function App() {
   return (
     <div className="container py-4">
       <h1 className="mb-4 text-primary">MCC Team Parser</h1>
-
-      {/* Conditionally render the textarea based on isParsed */}
       {!isParsed && (
         <>
           <p className="mb-2">Paste HTML below:</p>
@@ -121,13 +133,6 @@ function App() {
         </>
       )}
 
-      {/* Show "Clear" button only if teams have been parsed */}
-      {isParsed && (
-        <button className="btn btn-outline-danger" onClick={handleClear}>
-          Clear
-        </button>
-      )}
-
       {parseError && (
         <div className="alert alert-danger mt-4" role="alert">
           {parseError}
@@ -136,17 +141,12 @@ function App() {
 
       {teams.length > 0 && isParsed && (
         <>
-          <div className="d-flex justify-content-between align-items-center mt-4 mb-3">
-            <h2 className="text-secondary">Parsed Teams</h2>
-          </div>
-
           <div className="row">
             {teams.map((team, i) => (
               <div className="col-md-6 col-lg-3 mb-4" key={i}>
                 <div className="card h-100">
                   <div className="card-body">
                     <h5 className="card-title">
-                      {/* Display logo before the team name */}
                       {team.logo && (
                         <img
                           src={team.logo}
@@ -154,12 +154,19 @@ function App() {
                           className="img-fluid mb-2"
                         />
                       )}
-                      {team.name}
+                      {team.teamName}
                     </h5>
-                    <ul className="list-group list-group-flush">
+                    <ul className="list-group">
                       {team.members.map((m, j) => {
+                        const isHermit = hermitcraftList.includes(m);
+
                         return (
-                          <li className="list-group-item" key={j}>
+                          <li
+                            className={`list-group-item ${
+                              isHermit ? "hermit-member" : ""
+                            }`}
+                            key={j}
+                          >
                             {m}
                           </li>
                         );
@@ -172,6 +179,13 @@ function App() {
           </div>
         </>
       )}
+      <footer className="text-center mt-5">
+        {isParsed && (
+          <button className="btn btn-sm btn-dark" onClick={handleClear}>
+            Clear
+          </button>
+        )}
+      </footer>
     </div>
   );
 }
