@@ -141,28 +141,44 @@ function App() {
 
       {teams.length > 0 && isParsed && (
         <>
-          <div className="row">
+          <div className="accordion" id="teamsAccordion">
             {teams.map((team, i) => (
-              <div className="col-6 col-sm-6 col-md-4 col-lg-3 mb-4" key={i}>
-                <div className="card h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">
-                      {team.logo && (
-                        <img
-                          src={team.logo}
-                          alt={`${team.name} logo`}
-                          className="img-fluid mb-2"
-                        />
-                      )}
-                      {team.teamName}
-                    </h5>
+              <div className="accordion-item" key={i}>
+                <h2 className="accordion-header" id={`heading-${i}`}>
+                  <button
+                    className="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target={`#collapse-${i}`}
+                    aria-expanded="false"
+                    aria-controls={`collapse-${i}`}
+                  >
+                    {team.logo && (
+                      <img
+                        src={team.logo}
+                        alt={`${team.teamName} logo`}
+                        className="me-2"
+                        style={{ height: "30px" }}
+                      />
+                    )}
+                    {team.teamName}
+                    {team.members.some((m) => hermitcraftList.includes(m)) && (
+                      <span class="text-warning ms-1">*</span>
+                    )}
+                  </button>
+                </h2>
+                <div
+                  id={`collapse-${i}`}
+                  className="accordion-collapse collapse bg-dark"
+                  aria-labelledby={`heading-${i}`}
+                >
+                  <div className="accordion-body">
                     <ul className="list-group">
                       {team.members.map((m, j) => {
                         const isHermit = hermitcraftList.includes(m);
-
                         return (
                           <li
-                            className={`list-group-item ${
+                            className={`list-group-item list-group-item-dark ${
                               isHermit ? "hermit-member" : ""
                             }`}
                             key={j}
@@ -179,7 +195,7 @@ function App() {
           </div>
         </>
       )}
-      <footer className="text-center mt-5">
+      <footer className="text-center mt-3">
         {isParsed && (
           <button className="btn btn-sm btn-dark" onClick={handleClear}>
             Clear
