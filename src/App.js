@@ -39,8 +39,8 @@ function App() {
         } finally {
           setLoading(false); // Stänger av laddning
         }
-      }, 2000); // Fejkladdning i 2 sekunder
-    }, 1000); // Fördröjer innan vi börjar fejkladdning
+      }, 500); // Fejkladdning i 2 sekunder
+    }, 500); // Fördröjer innan vi börjar fejkladdning
 
     return () => clearTimeout(fakeLoading); // Städar upp timeouten om komponenten tas bort
   }, []);
