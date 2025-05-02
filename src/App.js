@@ -143,7 +143,7 @@ function App() {
         <>
           <div className="row">
             {teams.map((team, i) => (
-              <div className="col-md-6 col-lg-3 mb-4" key={i}>
+              <div className="col-6 col-sm-6 col-md-4 col-lg-3 mb-4" key={i}>
                 <div className="card h-100">
                   <div className="card-body">
                     <h5 className="card-title">
