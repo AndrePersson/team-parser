@@ -1,70 +1,175 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { db, collection, addDoc, getDocs, deleteDoc, doc } from "./firebase"; // Import functions from firebase.js
 
 function App() {
-  const [rawHtml, setRawHtml] = useState(() => sessionStorage.getItem('teamHtml') || '');
-  const [teams, setTeams] = useState([]);
+  const [rawHtml, setRawHtml] = useState(
+    () => localStorage.getItem("teamHtml") || ""
+  );
+  const [teams, setTeams] = useState(() => {
+    const saved = localStorage.getItem("parsedTeams");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [parseError, setParseError] = useState("");
+  const [isParsed, setIsParsed] = useState(false);
 
+  // Fetch teams from Firestore on component mount
   useEffect(() => {
-    if (!rawHtml) return;
+    const fetchTeams = async () => {
+      try {
+        // Fetch data from the "teams" collection
+        const querySnapshot = await getDocs(collection(db, "teams"));
+        const firestoreTeams = querySnapshot.docs.map((doc) => doc.data());
+        setTeams(firestoreTeams);
+        setIsParsed(true); // Assuming you want to mark it as parsed when the data is fetched
+      } catch (error) {
+        console.error("Error fetching teams: ", error);
+      }
+    };
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(rawHtml, 'text/html');
-    const listItems = doc.querySelectorAll('ul.teamsList > li');
-    const parsedTeams = [];
+    fetchTeams();
+  }, []);
 
-    listItems.forEach(li => {
-      const teamName = li.querySelector('h2 span')?.textContent.trim() || 'Unknown';
-      const members = Array.from(li.querySelectorAll('.teamLogo')).map(img =>
-        img.alt.replace(/'s logo'?$/, '').trim()
-      );
-      parsedTeams.push({ name: teamName, members });
-    });
+  // Handle Save - Parse HTML and store in Firestore and Local Storage
+  const handleSave = async () => {
+    try {
+      // Step 1: Parse the raw HTML
+      const parsedTeams = [];
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawHtml, "text/html");
+      const listItems = doc.querySelectorAll("ul.teamsList > li");
 
-    setTeams(parsedTeams);
-  }, [rawHtml]);
+      if (listItems.length === 0) {
+        setParseError(
+          'No <ul class="teamsList"> found. Please check your HTML input.'
+        );
+        setTeams([]);
+        setIsParsed(false);
+        return;
+      }
 
-  const handleSave = () => {
-    sessionStorage.setItem('teamHtml', rawHtml);
-    window.location.reload(); // quick refresh to re-parse
+      listItems.forEach((li) => {
+        const teamName =
+          li.querySelector("h2 span")?.textContent.trim() || "Unknown";
+        const logoElement = li.querySelector("button.teamIconContainer img");
+        const logoSrc = logoElement ? logoElement.getAttribute("src") : "";
+        const logos = Array.from(li.querySelectorAll(".teamLogo"));
+        const members = logos.map((img) =>
+          img.alt.replace(/'s logo'?$/, "").trim()
+        );
+
+        parsedTeams.push({ name: teamName, members, logo: logoSrc });
+      });
+
+      // Step 2: Save the parsed teams to Firestore
+      const teamsCollectionRef = collection(db, "teams");
+
+      // Optional: Clear previous data in Firestore
+      const querySnapshot = await getDocs(teamsCollectionRef);
+      querySnapshot.forEach((doc) => {
+        deleteDoc(doc.ref); // Delete old documents if needed
+      });
+
+      // Add parsed teams to Firestore
+      parsedTeams.forEach(async (team) => {
+        await addDoc(teamsCollectionRef, {
+          teamName: team.name,
+          members: team.members,
+          logo: team.logo,
+        });
+      });
+
+      // Step 3: Update Local Storage and Component State
+      localStorage.setItem("teamHtml", rawHtml);
+      localStorage.setItem("parsedTeams", JSON.stringify(parsedTeams));
+      setTeams(parsedTeams);
+      setParseError("");
+      setIsParsed(true); // Mark as successfully parsed
+    } catch (error) {
+      console.error("Error adding document: ", error);
+    }
   };
 
+  // Handle Clear - Reset everything
   const handleClear = () => {
-    sessionStorage.removeItem('teamHtml');
-    setRawHtml('');
+    localStorage.removeItem("teamHtml");
+    localStorage.removeItem("parsedTeams");
+    setRawHtml("");
     setTeams([]);
+    setParseError("");
+    setIsParsed(false);
   };
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>MCC Team Parser</h1>
+    <div className="container py-4">
+      <h1 className="mb-4 text-primary">MCC Team Parser</h1>
 
-      {!rawHtml && (
+      {/* Conditionally render the textarea based on isParsed */}
+      {!isParsed && (
         <>
-          <p>Paste HTML below:</p>
-          <textarea
-            value={rawHtml}
-            onChange={e => setRawHtml(e.target.value)}
-            rows={15}
-            style={{ width: '100%' }}
-          />
-          <button onClick={handleSave}>Save & Parse</button>
+          <p className="mb-2">Paste HTML below:</p>
+          <div className="mb-3">
+            <textarea
+              className="form-control"
+              value={rawHtml}
+              onChange={(e) => setRawHtml(e.target.value)}
+              rows={10}
+            />
+          </div>
+          <button className="btn btn-success me-2" onClick={handleSave}>
+            Save & Parse
+          </button>
         </>
       )}
 
-      {teams.length > 0 && (
+      {/* Show "Clear" button only if teams have been parsed */}
+      {isParsed && (
+        <button className="btn btn-outline-danger" onClick={handleClear}>
+          Clear
+        </button>
+      )}
+
+      {parseError && (
+        <div className="alert alert-danger mt-4" role="alert">
+          {parseError}
+        </div>
+      )}
+
+      {teams.length > 0 && isParsed && (
         <>
-          <h2>Parsed Teams</h2>
-          <button onClick={handleClear}>Clear</button>
-          {teams.map((team, i) => (
-            <div key={i}>
-              <h3>{team.name}</h3>
-              <ul>
-                {team.members.map((m, j) => (
-                  <li key={j}>{m}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div className="d-flex justify-content-between align-items-center mt-4 mb-3">
+            <h2 className="text-secondary">Parsed Teams</h2>
+          </div>
+
+          <div className="row">
+            {teams.map((team, i) => (
+              <div className="col-md-6 col-lg-3 mb-4" key={i}>
+                <div className="card h-100">
+                  <div className="card-body">
+                    <h5 className="card-title">
+                      {/* Display logo before the team name */}
+                      {team.logo && (
+                        <img
+                          src={team.logo}
+                          alt={`${team.name} logo`}
+                          className="img-fluid mb-2"
+                        />
+                      )}
+                      {team.name}
+                    </h5>
+                    <ul className="list-group list-group-flush">
+                      {team.members.map((m, j) => {
+                        return (
+                          <li className="list-group-item" key={j}>
+                            {m}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
